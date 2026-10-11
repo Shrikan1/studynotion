@@ -8,8 +8,14 @@ exports.createRating = async (req, res) => {
     const userId = req.user.id
     const { rating, review, courseId } = req.body
 
-    // Check if the user is enrolled in the course
+    if (!rating || !review || !courseId) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields (rating, review, courseId) are required",
+      })
+    }
 
+    // Check if the user is enrolled in the course
     const courseDetails = await Course.findOne({
       _id: courseId,
       studentsEnroled: { $elemMatch: { $eq: userId } },
@@ -31,7 +37,7 @@ exports.createRating = async (req, res) => {
     if (alreadyReviewed) {
       return res.status(403).json({
         success: false,
-        message: "Course already reviewed by user",
+        message: "Course has already been reviewed by this user",
       })
     }
 
@@ -43,13 +49,12 @@ exports.createRating = async (req, res) => {
       user: userId,
     })
 
-    // Add the rating and review to the course
+    // Add the rating and review ObjectId to the course
     await Course.findByIdAndUpdate(courseId, {
       $push: {
-        ratingAndReviews: ratingReview,
+        ratingAndReviews: ratingReview._id,
       },
     })
-    await courseDetails.save()
 
     return res.status(201).json({
       success: true,
@@ -57,10 +62,10 @@ exports.createRating = async (req, res) => {
       ratingReview,
     })
   } catch (error) {
-    console.error(error)
+    console.error("Error creating rating:", error)
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: "Internal server error while creating rating",
       error: error.message,
     })
   }
@@ -69,13 +74,20 @@ exports.createRating = async (req, res) => {
 // Get the average rating for a course
 exports.getAverageRating = async (req, res) => {
   try {
-    const courseId = req.body.courseId
+    const courseId = req.body?.courseId || req.query?.courseId
+
+    if (!courseId || !mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid courseId is required",
+      })
+    }
 
     // Calculate the average rating using the MongoDB aggregation pipeline
     const result = await RatingAndReview.aggregate([
       {
         $match: {
-          course: new mongoose.Types.ObjectId(courseId), // Convert courseId to ObjectId
+          course: new mongoose.Types.ObjectId(courseId),
         },
       },
       {
@@ -96,7 +108,7 @@ exports.getAverageRating = async (req, res) => {
     // If no ratings are found, return 0 as the default rating
     return res.status(200).json({ success: true, averageRating: 0 })
   } catch (error) {
-    console.error(error)
+    console.error("Error getting average rating:", error)
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve the rating for the course",

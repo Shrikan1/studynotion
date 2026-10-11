@@ -5,14 +5,25 @@ const CourseProgress = require("../models/CourseProgress")
 const Course = require("../models/Course")
 
 exports.updateCourseProgress = async (req, res) => {
-  const { courseId, subsectionId } = req.body
+  const { courseId } = req.body
+  const subsectionId = req.body.subsectionId || req.body.subSectionId
   const userId = req.user.id
+
+  if (!courseId || !subsectionId) {
+    return res.status(400).json({
+      success: false,
+      message: "Course ID and Subsection ID are required",
+    })
+  }
 
   try {
     // Check if the subsection is valid
     const subsection = await SubSection.findById(subsectionId)
     if (!subsection) {
-      return res.status(404).json({ error: "Invalid subsection" })
+      return res.status(404).json({
+        success: false,
+        message: "Invalid subsection",
+      })
     }
 
     // Find the course progress document for the user and course
@@ -22,15 +33,17 @@ exports.updateCourseProgress = async (req, res) => {
     })
 
     if (!courseProgress) {
-      // If course progress doesn't exist, create a new one
       return res.status(404).json({
         success: false,
-        message: "Course progress Does Not Exist",
+        message: "Course progress does not exist",
       })
     } else {
       // If course progress exists, check if the subsection is already completed
       if (courseProgress.completedVideos.includes(subsectionId)) {
-        return res.status(400).json({ error: "Subsection already completed" })
+        return res.status(400).json({
+          success: false,
+          message: "Subsection already completed",
+        })
       }
 
       // Push the subsection into the completedVideos array
@@ -40,10 +53,17 @@ exports.updateCourseProgress = async (req, res) => {
     // Save the updated course progress
     await courseProgress.save()
 
-    return res.status(200).json({ message: "Course progress updated" })
+    return res.status(200).json({
+      success: true,
+      message: "Course progress updated",
+    })
   } catch (error) {
-    console.error(error)
-    return res.status(500).json({ error: "Internal server error" })
+    console.error("Error updating course progress:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while updating course progress",
+      error: error.message,
+    })
   }
 }
 

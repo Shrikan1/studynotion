@@ -13,6 +13,9 @@ const { cloudinaryConnect } = require("./config/cloudinary");
 const fileUpload = require("express-fileupload");
 const dotenv = require("dotenv");
 
+const path = require("path");
+const os = require("os");
+
 // Loading environment variables from .env file
 dotenv.config();
 
@@ -34,7 +37,8 @@ app.use(
 app.use(
 	fileUpload({
 		useTempFiles: true,
-		tempFileDir: "/tmp/",
+		tempFileDir: path.join(os.tmpdir(), "studynotion-temp"),
+		createParentPath: true,
 	})
 );
 
@@ -53,6 +57,23 @@ app.get("/", (req, res) => {
 	return res.json({
 		success: true,
 		message: "Your server is up and running ...",
+	});
+});
+
+// Handle 404 routes
+app.use((req, res) => {
+	return res.status(404).json({
+		success: false,
+		message: `Route not found: ${req.originalUrl}`,
+	});
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+	console.error("Unhandled server error:", err);
+	return res.status(err.status || 500).json({
+		success: false,
+		message: err.message || "Internal server error",
 	});
 });
 

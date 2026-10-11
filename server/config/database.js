@@ -1,20 +1,31 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const { MONGODB_URL, DB_URL } = process.env;
-
 exports.connect = () => {
-	const mongoUrl = MONGODB_URL || DB_URL;
+	const mongoUrl =
+		process.env.MONGODB_URL ||
+		process.env.DB_URL ||
+		"mongodb://127.0.0.1:27017/studynotion";
+
+	if (!process.env.MONGODB_URL && !process.env.DB_URL) {
+		console.warn(
+			"Warning: MONGODB_URL is not set in environment variables. Falling back to local MongoDB: mongodb://127.0.0.1:27017/studynotion"
+		);
+	}
 
 	mongoose
-		.connect(mongoUrl, {
-			useNewUrlparser: true,
-			useUnifiedTopology: true,
-		})
-		.then(() => console.log(`DB Connection Success`))
+		.connect(mongoUrl)
+		.then(() => console.log("DB Connection Success"))
 		.catch((err) => {
-			console.log(`DB Connection Failed`);
-			console.log(err);
-			process.exit(1);
+			console.error("DB Connection Failed");
+			console.error(err);
 		});
+
+	mongoose.connection.on("error", (err) => {
+		console.error("MongoDB runtime connection error:", err);
+	});
+
+	mongoose.connection.on("disconnected", () => {
+		console.warn("MongoDB connection disconnected");
+	});
 };
